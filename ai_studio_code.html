@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>榮格八維認知功能與 MBTI 傾向評測</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-lg font-bold text-indigo-900 tracking-wide">榮格八維認知功能評測</h1>
+            <span id="global-progress" class="text-sm font-medium text-slate-500">進度 0 / 24</span>
+        </div>
+    </header>
+
+    <!-- 主內容區 -->
+    <main class="max-w-4xl w-full mx-auto px-4 py-8 flex-grow flex items-center justify-center">
+        
+        <!-- 歡迎畫面 -->
+        <div id="welcome-panel" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 md:p-12 text-center max-w-2xl w-full">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 mb-6">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">歡迎參與榮格八維人格測驗</h2>
+            <p class="text-slate-600 leading-relaxed mb-6 text-left text-sm md:text-base">
+                本測驗依據榮格八維認知功能（Cognitive Functions）的核心特質設計，共有 24 道情境選擇題。
+                <br><br>
+                每一道題目皆包含四個描述選項，請您根據您的真實反應與心理傾向，<strong>將這四個選項由最符合（第 1 順位）到最不符合（第 4 順位）進行排序</strong>。
+                此測驗不限制時間，請以直覺作答，這能幫助我們更客觀地分析您的認知功能分布。
+            </p>
+            <button onclick="startTest()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-8 py-3.5 rounded-xl transition duration-150 shadow-md shadow-indigo-100">
+                開始進行測驗
+            </button>
+        </div>
+
+        <!-- 測驗進行畫面 -->
+        <div id="test-panel" class="hidden w-full max-w-3xl">
+            <!-- 進度條 -->
+            <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mb-6">
+                <div id="progress-bar" class="bg-indigo-600 h-1.5 transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8">
+                <!-- 題目類別與標題 -->
+                <div class="mb-6">
+                    <span id="question-category" class="inline-block text-xs font-semibold tracking-wider text-indigo-600 uppercase bg-indigo-50 px-2.5 py-1 rounded-full mb-3">
+                        類別加載中...
+                    </span>
+                    <h3 id="question-text" class="text-lg md:text-xl font-bold text-slate-800 leading-snug">
+                        題目載入中，請稍候...
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <!-- 待排序選項 -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">待排序選項（請依直覺點選）</h4>
+                        <div id="options-pool" class="space-y-3">
+                            <!-- JS 動態生成 -->
+                        </div>
+                    </div>
+
+                    <!-- 目前排序狀態 -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">我的優先順序（點選可取消）</h4>
+                        <div id="ranking-slots" class="space-y-2">
+                            <!-- JS 動態生成 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 導覽按鈕 -->
+                <div class="flex items-center justify-between border-t border-slate-100 mt-8 pt-6">
+                    <button id="prev-btn" onclick="prevQuestion()" class="flex items-center text-slate-500 hover:text-slate-800 font-medium px-4 py-2 rounded-lg transition">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        上一題
+                    </button>
+                    <button id="next-btn" onclick="nextQuestion()" class="flex items-center bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium px-6 py-2.5 rounded-xl transition shadow-md shadow-indigo-100 disabled:shadow-none" disabled>
+                        <span>下一題</span>
+                        <svg class="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 測驗結果畫面 -->
+        <div id="result-panel" class="hidden w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-10">
+            <div class="text-center mb-10">
+                <span class="text-xs font-bold tracking-widest text-indigo-600 uppercase">測驗分析報告</span>
+                <h2 class="text-3xl font-bold text-slate-800 mt-2 mb-3">您的 MBTI 最終評測類型為</h2>
+                <div id="mbti-type-badge" class="inline-block text-5xl md:text-6xl font-black text-indigo-600 tracking-wider py-2 px-6 bg-indigo-50 rounded-2xl">
+                    XXXX
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center border-t border-b border-slate-100 py-8 my-8">
+                <!-- 雷達圖 -->
+                <div class="lg:col-span-5 flex justify-center">
+                    <div class="w-full max-w-[340px] aspect-square">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 八維分數細節 -->
+                <div class="lg:col-span-7">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4">八維認知功能得分</h3>
+                    <div id="functions-score-list" class="grid grid-cols-2 gap-4">
+                        <!-- JS 動態生成功能分數清單 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 性格描述區 -->
+            <div class="bg-slate-50 rounded-xl p-6 md:p-8 mb-8">
+                <h3 class="text-xl font-bold text-slate-800 mb-3" id="type-title">類型概覽</h3>
+                <p class="text-slate-600 leading-relaxed text-sm md:text-base" id="type-description">
+                    分析結果載入中...
+                </p>
+            </div>
+
+            <!-- 重測按鈕 -->
+            <div class="text-center">
+                <button onclick="restartTest()" class="bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 font-medium px-8 py-3 rounded-xl transition duration-150">
+                    重新測試
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="bg-white border-t border-slate-100 py-6 text-center text-xs text-slate-400">
+        <div class="max-w-4xl mx-auto px-4">
+            本測驗僅作為心理傾向的探索與自我認識參考。
+        </div>
+    </footer>
+
+    <script>
+        // 24 題原始數據
+        const questions = [
+            // 一、 職場與專業情境
+            {
+                id: 1,
+                category: "一、 職場與專業情境",
+                text: "當公司產品銷量慘淡，開會檢討且氣氛凝重時，你第一時間的傾向是？",
+                options: [
+                    { key: "A", text: "拿出數據圖表，制定各部門下週績效，要求看到具體的改善報告。", func: "Te" },
+                    { key: "B", text: "先肯定大家的辛勞，安撫焦慮情緒，試圖重塑團隊凝聚力。", func: "Fe" },
+                    { key: "C", text: "保持沉默並分析邏輯，指出大家對「目標客群」定義的底層邏輯錯誤。", func: "Ti" },
+                    { key: "D", text: "反思這份工作與產品是否違背自己的內在價值，甚至考慮是否該離職。", func: "Fi" }
+                ]
+            },
+            {
+                id: 2,
+                category: "一、 職場與專業情境",
+                text: "面對一個極其混亂、缺乏效率的全新專案時，你會？",
+                options: [
+                    { key: "A", text: "迅速建立 SOP 標準作業程序，重新分配資源以追求最高產出。", func: "Te" },
+                    { key: "B", text: "翻閱過去類似專案的成功檔案，沿用最穩健、有前例可循的框架。", func: "Si" },
+                    { key: "C", text: "大腦像爆米花一樣蹦出各種大膽嘗試，提議改包裝或跨界聯名等新出路。", func: "Ne" },
+                    { key: "D", text: "直接帶樣品去街頭做盲測，從當下第一手的市場反饋中見招拆招。", func: "Se" }
+                ]
+            },
+            {
+                id: 3,
+                category: "一、 職場與專業情境",
+                text: "在辦公室聽到同事們正在為了某個執行細節爭吵不休時，你的反應是？",
+                options: [
+                    { key: "A", text: "主動站出來當和事佬，尋求大家都能接受的折衷方案以維持和諧。", func: "Fe" },
+                    { key: "B", text: "精確定義爭論點的關鍵字，釐清誰的邏輯推導存在矛盾或漏洞。", func: "Ti" },
+                    { key: "C", text: "穿透吵架的表象，洞察到這場爭執背後隱藏的長期管理體制問題。", func: "Ni" },
+                    { key: "D", text: "注意到某個細微的數據錯誤或流程遺漏，這是別人都沒發現的關鍵點。", func: "Si" }
+                ]
+            },
+            {
+                id: 4,
+                category: "一、 職場與專業情境",
+                text: "獲邀參與一個高層次的產業界前瞻講座時，你最關注的是？",
+                options: [
+                    { key: "A", text: "這個架構可以解決現實中什麼問題，如何應用在明年的行銷案中。", func: "Te" },
+                    { key: "B", text: "講者的邏輯推導過程是否有漏洞，理論本身是否達到完美的真理。", func: "Ti" },
+                    { key: "C", text: "這項技術或理論在未來五年後，會如何徹底改變整個產業的藍圖。", func: "Ni" },
+                    { key: "D", text: "現場展示的實驗、震撼的影片或講師極具活力的表達方式。", func: "Se" }
+                ]
+            },
+            // 二、 社交、情感與人際
+            {
+                id: 5,
+                category: "二、 社交、情感與人際",
+                text: "與剛認識不久的對象在餐廳吃飯聊天時，你的大腦運作方式更接近？",
+                options: [
+                    { key: "A", text: "雷達全開地觀察對方的表情語氣，體貼地倒水、點餐，絕不讓氣氛冷場。", func: "Fe" },
+                    { key: "B", text: "拒絕社交客套，尋找對方的真實面貌，若發現價值觀不合寧可保持沉默。", func: "Fi" },
+                    { key: "C", text: "完全沉浸在當下的氣氛，享受美食與音樂，和對方分享最近的冒險趣事。", func: "Se" },
+                    { key: "D", text: "透過細節解讀對方的深層動機，並預測這段關係半年後的可能結局。", func: "Ni" }
+                ]
+            },
+            {
+                id: 6,
+                category: "二、 社交、情感與人際",
+                text: "當好朋友生日快到了，你準備挑選禮物時的邏輯是？",
+                options: [
+                    { key: "A", text: "評估性價比與實用價值，買一個對方購物車裡真正需要的剛需商品。", func: "Te" },
+                    { key: "B", text: "追求獨一無二的意義，可能手作一份代表兩人靈魂羈絆的精神象徵。", func: "Fi" },
+                    { key: "C", text: "精心設計驚喜橋段，挑選對方收到後會最高興、最能炒熱氣氛的禮物。", func: "Fe" },
+                    { key: "D", text: "記得對方半年前隨口提過的喜好，送出一份絕對穩健、不會出錯的實用品。", func: "Si" }
+                ]
+            },
+            {
+                id: 7,
+                category: "二、 社交、情感與人際",
+                text: "當朋友向你抱怨主管很討厭、工作壓力很大時，你第一時間會？",
+                options: [
+                    { key: "A", text: "感同身受地給予深度的情感共鳴，代入對方的處境去體會那份委屈。", func: "Fi" },
+                    { key: "B", text: "切換到顧問模式，給出具體的解決步驟，教對方如何向 HR 反映或離職。", func: "Te" },
+                    { key: "C", text: "客觀分析主管的邏輯漏洞，告訴朋友不需要為「不理性」的邏輯感到難過。", func: "Ti" },
+                    { key: "D", text: "肯定朋友的付出，說些溫暖、鼓勵的話，幫助他重拾面對困難的勇氣。", func: "Fe" }
+                ]
+            },
+            {
+                id: 8,
+                category: "二、 社交、情感與人際",
+                text: "在一個大型聚會中，你通常扮演什麼樣的角色？",
+                options: [
+                    { key: "A", text: "群體的凝聚劑，負責照顧每個人的情緒，確保現場每個人都感到被包容。", func: "Fe" },
+                    { key: "B", text: "活力的來源，帶頭玩遊戲、享受美食，是全場最能帶動熱鬧氣氛的人。", func: "Se" },
+                    { key: "C", text: "點子王，話題跳躍性極強，不斷拋出意想不到的笑話、梗與奇思妙想。", func: "Ne" },
+                    { key: "D", text: "安靜觀察者，只與志同道合、靈魂頻率相近的人進行有深度的真實對話。", func: "Fi" }
+                ]
+            },
+            // 三、 學習與資訊吸收
+            {
+                id: 9,
+                category: "三、 學習與資訊吸收",
+                text: "面對一本高達五百頁、充滿專有名詞的教科書或商業書時，你會？",
+                options: [
+                    { key: "A", text: "循序漸進按章節讀，筆記做得條理分明，力求精準記住每個定義與年份。", func: "Si" },
+                    { key: "B", text: "自動忽略瑣碎細節，試圖提煉出整本書的核心底層邏輯與未來趨勢。", func: "Ni" },
+                    { key: "C", text: "讀到 A 概念就連線到 B 影集，書讀一半就開始上網查相關的延伸話題。", func: "Ne" },
+                    { key: "D", text: "覺得純文字太枯燥，需要配合示範、圖片或操作實驗才能真正學進去。", func: "Se" }
+                ]
+            },
+            {
+                id: 10,
+                category: "三、 學習與資訊吸收",
+                text: "學習一項全新技能（如程式、樂器）時，你的切入點是？",
+                options: [
+                    { key: "A", text: "必須先搞懂底層運作原理，追求知識架構的完整與邏輯上的精確。", func: "Ti" },
+                    { key: "B", text: "先看如何應用在實際產出上，追求儘快學會「能解決問題」的部分。", func: "Te" },
+                    { key: "C", text: "遵循老師或傳統教材的標準流程，透過反覆練習建立穩定的基本功。", func: "Si" },
+                    { key: "D", text: "直接上手摸索，透過身體的直接感受與即時反應，在實戰中學習。", func: "Se" }
+                ]
+            },
+            {
+                id: 11,
+                category: "三、 學習與資訊吸收",
+                text: "對於所謂的「真理」，你更傾向於相信？",
+                options: [
+                    { key: "A", text: "只要邏輯上說得通、無矛盾，不論世俗權威如何，它就是真理。", func: "Ti" },
+                    { key: "B", text: "實證、數據與客觀事實，能產生實際效用與預期結果的才是真理。", func: "Te" },
+                    { key: "C", text: "內心靈魂最深處的感受，是否符合我堅不可摧的個人道德體系。", func: "Fi" },
+                    { key: "D", text: "經得起時間考驗的傳統經驗，以及過去被反覆驗證成功的紀錄。", func: "Si" }
+                ]
+            },
+            {
+                id: 12,
+                category: "三、 學習與資訊吸收",
+                text: "當你對某個冷門知識感興趣時，通常是因為？",
+                options: [
+                    { key: "A", text: "純粹享受解構事物的樂趣，只是單純「想搞懂」它，不在乎實用價值。", func: "Ti" },
+                    { key: "B", text: "它能引發我無數的可能性聯想，開啟一扇通往未知世界的新窗戶。", func: "Ne" },
+                    { key: "C", text: "我感覺它能與其他知識融會貫通，形成一個巨大的核心洞察。", func: "Ni" },
+                    { key: "D", text: "這項知識能增進我的工作效率，或讓我達成某個具體的目標。", func: "Te" }
+                ]
+            },
+            // 四、 日常生活與環境
+            {
+                id: 13,
+                category: "四、 日常生活與環境",
+                text: "搬家或挑選新房子時，你最看重的細節是？",
+                options: [
+                    { key: "A", text: "打開水龍頭測水壓、踩地板看異音，附近最好有超商與好吃的宵夜。", func: "Se" },
+                    { key: "B", text: "格局是否方正、結構是否穩健，環境是否讓我有熟悉的安全感。", func: "Si" },
+                    { key: "C", text: "這間房子的動線與氣場是否契合我兩年後的長期規劃。", func: "Ni" },
+                    { key: "D", text: "想像住在這的生活版本，客廳放投影機、陽台種多肉，充滿可能性。", func: "Ne" }
+                ]
+            },
+            {
+                id: 14,
+                category: "四、 日常生活與環境",
+                text: "準備去超市買一週的食材與日用品時，你的風格是？",
+                options: [
+                    { key: "A", text: "拿著固定的購物清單，買熟悉的品牌，對價格與品質有精確的對比紀錄。", func: "Si" },
+                    { key: "B", text: "看到什麼新鮮或順眼的就買什麼，享受挑選過程中的感官刺激與樂趣。", func: "Se" },
+                    { key: "C", text: "這看起來不錯，有沒有可能用這食材研發新料理？或嘗試從未買過的異國品牌。", func: "Ne" },
+                    { key: "D", text: "以最高效率逛完整間店，精準打擊購物清單上的商品，追求 CP 值。", func: "Te" }
+                ]
+            },
+            {
+                id: 15,
+                category: "四、 日常生活與環境",
+                text: "獨處的時候，你的大腦通常在做什麼？",
+                options: [
+                    { key: "A", text: "消化和處理內心細膩的情感，反思自己的靈魂價值與道德純潔感。", func: "Fi" },
+                    { key: "B", text: "默默審視生活中的邏輯矛盾，對某些知識點進行大腦內部的除錯（Debug）。", func: "Ti" },
+                    { key: "C", text: "回味過去的高畫質記憶，將當下的經驗與舊相簿裡的檔案進行對比。", func: "Si" },
+                    { key: "D", text: "進入潛意識的後台運作，等待某個預測未來趨勢的「頓悟」浮現。", func: "Ni" }
+                ]
+            },
+            {
+                id: 16,
+                category: "四、 日常生活與環境",
+                text: "面對家裡的收納或整理工作時，你的做法是？",
+                options: [
+                    { key: "A", text: "將物品分類歸檔得井井有條，建立一套長期穩定且容易維持的秩序。", func: "Si" },
+                    { key: "B", text: "追求最高效率，丟掉不需要的東西，建立一套能縮短找尋時間的系統。", func: "Te" },
+                    { key: "C", text: "只要視覺上整潔、摸起來舒服就好，重視物品擺放的美感與手感。", func: "Se" },
+                    { key: "D", text: "整理到一半會被舊物勾起靈感，開始想著這東西可以改成別的用途。", func: "Ne" }
+                ]
+            },
+            // 五、 決策風格與自我定位
+            {
+                id: 17,
+                category: "五、 決策風格與自我定位",
+                text: "當需要做一個重大的人生決定（如換工作）時，你依賴的是？",
+                options: [
+                    { key: "A", text: "一種強烈的、難以解釋的直覺與長期願景，看到唯一的未來藍圖。", func: "Ni" },
+                    { key: "B", text: "盡可能探索各種新出路，列出五到十個不同的可能性再決定。", func: "Ne" },
+                    { key: "C", text: "問自己的心，這件事是否符合我最真實的本質，有沒有違背良心。", func: "Fi" },
+                    { key: "D", text: "權衡利弊得失，看數據、績效與現實產出，選擇在有限時間內的最優解。", func: "Te" }
+                ]
+            },
+            {
+                id: 18,
+                category: "五、 決策風格與自我定位",
+                text: "如果有人批評你「沒原則」，你最可能的心理反駁是？",
+                options: [
+                    { key: "A", text: "我非常有原則，只是我的核心價值不見得符合世俗的法律或社會標準。", func: "Fi" },
+                    { key: "B", text: "實用才是硬道理，如果死守舊規會導致失敗，調整策略才是理性的選擇。", func: "Te" },
+                    { key: "C", text: "我願意為了大局的和諧做出退讓，這不叫沒原則，這叫體恤。", func: "Fe" },
+                    { key: "D", text: "我的行為是基於我自洽的邏輯體系，只是你沒看懂我的底層邏輯。", func: "Ti" }
+                ]
+            },
+            {
+                id: 19,
+                category: "五、 決策風格與自我定位",
+                text: "當你的計畫趕不上變化，出現突發狀況時，你的反應是？",
+                options: [
+                    { key: "A", text: "見招拆招，憑藉敏捷的生存本能，在兩秒內對環境變化做出即時反應。", func: "Se" },
+                    { key: "B", text: "大腦自動生出備用方案 B、C、D，視變化為另一種有趣的挑戰。", func: "Ne" },
+                    { key: "C", text: "感到極度焦慮，本能地抗拒改變，試圖尋找熟悉的舊流程來穩住局面。", func: "Si" },
+                    { key: "D", text: "冷靜地看著變化，分析這是否與我預測的大趨勢相符，調整長期藍圖。", func: "Ni" }
+                ]
+            },
+            {
+                id: 20,
+                category: "五、 決策風格與自我定位",
+                text: "你最討厭與哪種人共事？",
+                options: [
+                    { key: "A", text: "做事沒效率、情緒化、整天空談而沒有具體產出的人。", func: "Te" },
+                    { key: "B", text: "邏輯不通、人云亦云、說話含糊且沒有經過大腦思考的人。", func: "Ti" },
+                    { key: "C", text: "冷酷無情、不顧及他人感受、破壞團隊氣氛的和諧。", func: "Fe" },
+                    { key: "D", text: "虛情假意、官僚主義、為了利益或討好他人而背叛靈魂的人。", func: "Fi" }
+                ]
+            },
+            // 六、 危機與極限狀態
+            {
+                id: 21,
+                category: "六、 危機與極限狀態",
+                text: "在極大的壓力下，你最容易出現的「負面表現」是？",
+                options: [
+                    { key: "A", text: "變得極度衝動、及時行樂，沉溺於感官刺激（如暴飲暴食）。", func: "Se" },
+                    { key: "B", text: "陷入過去的失敗經驗反覆重播，變得很固執且拒絕任何新變革。", func: "Si" },
+                    { key: "C", text: "對未來產生極度消極、災難化的妄想，覺得一切都完蛋了。", func: "Ni" },
+                    { key: "D", text: "思維混亂跳躍，沒完沒了地挖掘無意義的可能性，卻無法執行。", func: "Ne" }
+                ]
+            },
+            {
+                id: 22,
+                category: "六、 危機與極限狀態",
+                text: "當你身處混亂的現場，需要你帶領大家撤離或處理危機時，你會？",
+                options: [
+                    { key: "A", text: "展現出驚人的生存本能與冷靜，迅速捕捉現場細節並帶頭衝出去。", func: "Se" },
+                    { key: "B", text: "展現強大的控制欲與推進力，果斷下令誰該做什麼，迅速恢復秩序。", func: "Te" },
+                    { key: "C", text: "先安撫驚慌失措的人們，確保沒有人被落下，維持團隊的穩定性。", func: "Fe" },
+                    { key: "D", text: "退回後台，迅速分析現場系統崩潰的原因，找出最關鍵的一條逃生邏輯。", func: "Ti" }
+                ]
+            },
+            {
+                id: 23,
+                category: "六、 危機與極限狀態",
+                text: "面對一件你認為「邏輯上有瑕疵」但「能帶來巨大成功」的事，你會？",
+                options: [
+                    { key: "A", text: "內心極度不適，甚至會嗤之以鼻，不論能賺多少錢都拒絕認同。", func: "Ti" },
+                    { key: "B", text: "實用主義至上，只要結果是有效的且效率高，細微的邏輯瑕疵可以接受。", func: "Te" },
+                    { key: "C", text: "看這件事是否違背我的內在信念，若違背價值，成功也沒有意義。", func: "Fi" },
+                    { key: "D", text: "看這件事是否會傷害到群體的利益與和諧，若大家支持且共好便會去做。", func: "Fe" }
+                ]
+            },
+            {
+                id: 24,
+                category: "六、 危機與極限狀態",
+                text: "當你的人生遇到重大轉折點，回顧過去時，你的感覺是？",
+                options: [
+                    { key: "A", text: "一本分類完美、充滿細節與真實感受的歷史舊相簿。", func: "Si" },
+                    { key: "B", text: "一場穿越迷霧、最終走向注定結局的深奧「拼圖」解謎之旅。", func: "Ni" },
+                    { key: "C", text: "一場從一個點出發，炸開無數可能性煙火的奇幻冒險。", func: "Ne" },
+                    { key: "D", text: "一台永遠在錄製「當下實況」的相機，每個瞬間都是鮮活的。", func: "Se" }
+                ]
+            }
+        ];
+
+        // 儲存每題的排序答案。格式：[ [ 'A', 'D', 'B', 'C' ], ... ]
+        // 代表第 1 順位為 A，第 2 為 D...
+        let userAnswers = Array(questions.length).fill(null).map(() => []);
+        let currentIndex = 0;
+        let chartInstance = null;
+
+        // MBTI 人格類型的簡要描述
+        const typeProfiles = {
+            "INTJ": "INTJ（建築師型）：受 Ni-Te 驅動，擅長制定長期藍圖並進行系統化實踐。你們通常具備高度的獨立思考與冷靜客觀的邏輯架構，傾向穿透表象直視本質。",
+            "INFJ": "INFJ（提倡者型）：受 Ni-Fe 驅動，注重深沉的直覺與集體和諧。你們能洞察人際背後的隱形連結與長遠藍圖，以溫和且具感染力的方式引導世界前行。",
+            "ENTP": "ENTP（辯論家型）：受 Ne-Ti 驅動，腦中充滿了多維度的聯想與推理論證。你們樂於挑戰常規，解構邏輯體系，並在各種思維實驗與新點子中獲得能量。",
+            "ENFP": "ENFP（競選者型）：受 Ne-Fi 驅動，以無窮的熱情探索外在可能性，並堅守真實的內在價值。你們是溫暖而富創意的連結者，重視心靈自由與潛能開拓。",
+            "ISTJ": "ISTJ（物流師型）：受 Si-Te 驅動，注重具體實證、經典經驗與程序效率。你們是可靠、務實且注重細節的秩序建立者，以細緻且有條理的方式履行職責。",
+            "ISFJ": "ISFJ（守衛者型）：受 Si-Fe 驅動，依循穩健的傳統經驗，體貼並照顧身邊群體的切實需求。你們默默支持、堅毅守信，並展現出細微的耐心與關懷。",
+            "ESTP": "ESTP（企業家型）：受 Se-Ti 驅動，擁有敏銳的實時反應力與實用的思維推理。你們習慣當下解決問題，勇於冒險、享受體驗，常以見招拆招的姿態克服挑戰。",
+            "ESFP": "ESFP（表演者型）：受 Se-Fi 驅動，高度沉浸於感官當下，追求生活體驗，同時擁有真摯的內心感受。你們往往是充滿活力、熱愛美感且率性自然的實踐者。",
+            "INFP": "INFP（調停者型）：受 Fi-Ne 驅動，擁有細緻深沉的內在道德體系與廣泛的聯想力。你們忠於靈魂的真實性，追求精神層面的深邃意義，並帶著良善與創意理解世界。",
+            "ISFP": "ISFP（探險家型）：受 Fi-Se 驅動，安靜且堅定地守護個人核心價值，並在具體的生活細節或藝術領域中投射感知。你們不喜束縛，偏好隨性而美學的生活體驗。",
+            "ENFJ": "ENFJ（主人公型）：受 Fe-Ni 驅動，能敏銳感知眾人的情感共振，並以清晰的長遠願景引領團隊。你們是深具同理心與感召力的溝通者，致力於促進集體共好。",
+            "ESFJ": "ESFJ（執政官型）：受 Fe-Si 驅動，熱衷於建立和諧的社交環境與群體秩序，並遵循安全、穩定的經驗程序。你們細心周到、熱情體貼，是人際網絡中強大的後盾。",
+            "ISTP": "ISTP（鑑賞家型）：受 Ti-Se 驅動，熱衷於分析客觀實體的運作原理，並在當下的現實場景中發揮靈活的動手操作能力。你們冷靜務實，常以簡練的方法排除難題。",
+            "INTP": "INTP（邏輯學家型）：受 Ti-Ne 驅動，追求自洽的底層邏輯體系，同時探索各種抽象理論的可能性。你們以客觀、中立且抽離的視角審視規律，對知識抱有純粹的好奇。",
+            "ENTJ": "ENTJ（指揮官型）：受 Te-Ni 驅動，將外在效率、標準程序與長遠戰略高度結合。你們是天生的方向引領者，條理清晰、果敢決斷，專注於克服系統障礙並推動目標落地。",
+            "ESTJ": "ESTJ（總經理型）：受 Te-Si 驅動，追求高效率的系統運作、確切的規則與歷經考驗的成功架構。你們講求誠實、奉獻與條理，是值得信賴且注重具體產出的執行者。"
+        };
+
+        // 開機初始化
+        function startTest() {
+            document.getElementById('welcome-panel').classList.add('hidden');
+            document.getElementById('test-panel').classList.remove('hidden');
+            currentIndex = 0;
+            renderQuestion();
+        }
+
+        // 渲染當前題目
+        function renderQuestion() {
+            const q = questions[currentIndex];
+            const chosen = userAnswers[currentIndex];
+
+            // 頂部進度文字
+            document.getElementById('global-progress').innerText = `進度 ${currentIndex + 1} / ${questions.length}`;
+            
+            // 進度條長度
+            const percent = ((currentIndex + 1) / questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+
+            // 類別與題目
+            document.getElementById('question-category').innerText = q.category;
+            document.getElementById('question-text').innerText = `${q.id}. ${q.text}`;
+
+            // 渲染待選區 (Options Pool)
+            const poolContainer = document.getElementById('options-pool');
+            poolContainer.innerHTML = '';
+            
+            q.options.forEach(opt => {
+                const isSelected = chosen.includes(opt.key);
+                if (!isSelected) {
+                    poolContainer.innerHTML += `
+                        <div onclick="selectOption('${opt.key}')" 
+                             class="p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/10 cursor-pointer shadow-sm active:scale-[0.99] transition duration-150 flex items-start gap-3">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-100 text-slate-500 font-bold text-sm shrink-0 mt-0.5">${opt.key}</span>
+                            <span class="text-sm md:text-base text-slate-700 font-normal leading-relaxed">${opt.text}</span>
+                        </div>
+                    `;
+                } else {
+                    poolContainer.innerHTML += `
+                        <div class="p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-start gap-3 opacity-30 cursor-not-allowed">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-200 text-slate-400 font-bold text-sm shrink-0 mt-0.5">${opt.key}</span>
+                            <span class="text-sm md:text-base text-slate-400 font-normal leading-relaxed">${opt.text}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            // 渲染排序槽 (Ranking Slots)
+            const slotsContainer = document.getElementById('ranking-slots');
+            slotsContainer.innerHTML = '';
+
+            const slotStyles = [
+                { title: "第 1 順位 (4分)", color: "border-indigo-100 bg-indigo-50/50 text-indigo-900" },
+                { title: "第 2 順位 (3分)", color: "border-sky-100 bg-sky-50/40 text-sky-900" },
+                { title: "第 3 順位 (2分)", color: "border-teal-100 bg-teal-50/30 text-teal-900" },
+                { title: "第 4 順位 (1分)", color: "border-slate-100 bg-slate-50 text-slate-500" }
+            ];
+
+            for (let i = 0; i < 4; i++) {
+                const style = slotStyles[i];
+                const key = chosen[i];
+                if (key) {
+                    const optObj = q.options.find(o => o.key === key);
+                    slotsContainer.innerHTML += `
+                        <div onclick="deselectSlot(${i})" 
+                             class="p-3 border rounded-xl cursor-pointer hover:border-red-200 hover:bg-red-50/30 transition duration-150 ${style.color} flex items-center justify-between gap-3 group">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs font-bold shrink-0 opacity-75">${style.title}</span>
+                                <span class="text-sm font-medium line-clamp-1">${optObj.text}</span>
+                            </div>
+                            <span class="text-xs font-bold text-slate-400 group-hover:text-red-500 shrink-0">✕</span>
+                        </div>
+                    `;
+                } else {
+                    slotsContainer.innerHTML += `
+                        <div class="p-3 border border-dashed border-slate-200 rounded-xl flex items-center gap-3 min-h-[46px]">
+                            <span class="text-xs font-bold text-slate-400 shrink-0">${style.title}</span>
+                            <span class="text-xs text-slate-300">尚未填入...</span>
+                        </div>
+                    `;
+                }
+            }
+
+            // 更新按鈕狀態
+            document.getElementById('prev-btn').disabled = (currentIndex === 0);
+            document.getElementById('prev-btn').style.opacity = (currentIndex === 0) ? '0.3' : '1';
+            
+            const isCompleted = chosen.length === 4;
+            const nextBtn = document.getElementById('next-btn');
+            nextBtn.disabled = !isCompleted;
+            
+            // 最後一題按鈕文字更換
+            if (currentIndex === questions.length - 1) {
+                nextBtn.querySelector('span').innerText = "提交並計算";
+            } else {
+                nextBtn.querySelector('span').innerText = "下一題";
+            }
+        }
+
+        // 選擇某個選項，進入下一個順位
+        function selectOption(key) {
+            const chosen = userAnswers[currentIndex];
+            if (chosen.length < 4 && !chosen.includes(key)) {
+                chosen.push(key);
+                renderQuestion();
+            }
+        }
+
+        // 取消某個位置的選擇
+        function deselectSlot(index) {
+            const chosen = userAnswers[currentIndex];
+            chosen.splice(index, 1);
+            renderQuestion();
+        }
+
+        // 上一題
+        function prevQuestion() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderQuestion();
+            }
+        }
+
+        // 下一題或提交
+        function nextQuestion() {
+            if (userAnswers[currentIndex].length !== 4) return;
+            
+            if (currentIndex < questions.length - 1) {
+                currentIndex++;
+                renderQuestion();
+            } else {
+                // 已填答至最後一題，進行結算
+                showResult();
+            }
+        }
+
+        // 計算分數與呈現結果
+        function showResult() {
+            document.getElementById('test-panel').classList.add('hidden');
+            document.getElementById('result-panel').classList.remove('hidden');
+
+            // 初始化八維計分板
+            const scores = { Se: 0, Si: 0, Ne: 0, Ni: 0, Te: 0, Ti: 0, Fe: 0, Fi: 0 };
+            const pointsMap = [4, 3, 2, 1]; // 對應 1st, 2nd, 3rd, 4th 順位
+
+            // 計算分數
+            questions.forEach((q, idx) => {
+                const answer = userAnswers[idx];
+                answer.forEach((key, rIdx) => {
+                    const optObj = q.options.find(o => o.key === key);
+                    if (optObj) {
+                        scores[optObj.func] += pointsMap[rIdx];
+                    }
+                });
+            });
+
+            // 判斷 MBTI 類型 (採用使用者提供的標準推演邏輯)
+            let maxScore = -1;
+            let highestFunc = 'Ni';
+            const functions = ['Se', 'Si', 'Ne', 'Ni', 'Te', 'Ti', 'Fe', 'Fi'];
+            
+            functions.forEach(f => {
+                if (scores[f] > maxScore) {
+                    maxScore = scores[f];
+                    highestFunc = f;
+                }
+            });
+
+            let mbti = "";
+            if (highestFunc === 'Ni') {
+                mbti = scores['Te'] > scores['Fe'] ? 'INTJ' : 'INFJ';
+            } else if (highestFunc === 'Ne') {
+                mbti = scores['Ti'] > scores['Fi'] ? 'ENTP' : 'ENFP';
+            } else if (highestFunc === 'Si') {
+                mbti = scores['Te'] > scores['Fe'] ? 'ISTJ' : 'ISFJ';
+            } else if (highestFunc === 'Se') {
+                mbti = scores['Ti'] > scores['Fi'] ? 'ESTP' : 'ESFP';
+            } else if (highestFunc === 'Fi') {
+                mbti = scores['Ne'] > scores['Se'] ? 'INFP' : 'ISFP';
+            } else if (highestFunc === 'Fe') {
+                mbti = scores['Ni'] > scores['Si'] ? 'ENFJ' : 'ESFJ';
+            } else if (highestFunc === 'Ti') {
+                mbti = scores['Se'] > scores['Ne'] ? 'ISTP' : 'INTP';
+            } else if (highestFunc === 'Te') {
+                mbti = scores['Ni'] > scores['Si'] ? 'ENTJ' : 'ESTJ';
+            }
+
+            // 更新介面 MBTI 大標題
+            document.getElementById('mbti-type-badge').innerText = mbti;
+            document.getElementById('type-title').innerText = `您的性格傾向：${mbti}`;
+            document.getElementById('type-description').innerText = typeProfiles[mbti] || "分析完成。";
+
+            // 渲染分數條形清單
+            const listContainer = document.getElementById('functions-score-list');
+            listContainer.innerHTML = '';
+            
+            // 定義各維度的中文解釋
+            const funcLabelsZh = {
+                Se: "外傾感覺 (Se)", Si: "內傾感覺 (Si)",
+                Ne: "外傾直覺 (Ne)", Ni: "內傾直覺 (Ni)",
+                Te: "外傾思考 (Te)", Ti: "內傾思考 (Ti)",
+                Fe: "外傾情感 (Fe)", Fi: "內傾情感 (Fi)"
+            };
+
+            functions.forEach(f => {
+                const score = scores[f];
+                const percentage = Math.min(100, Math.round((score / 48) * 100)); // 單功能理論最高約為48分
+                listContainer.innerHTML += `
+                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-slate-700">${funcLabelsZh[f]}</span>
+                            <span class="text-xs font-bold text-slate-500">${score} 分</span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div class="bg-indigo-500 h-2 rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // 繪製雷達圖
+            drawRadar(scores);
+        }
+
+        // 繪製雷達圖 (使用 Chart.js)
+        function drawRadar(scores) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            // 銷毀舊實例
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            const data = {
+                labels: ['Se', 'Si', 'Ne', 'Ni', 'Te', 'Ti', 'Fe', 'Fi'],
+                datasets: [{
+                    label: '功能分數',
+                    data: [scores.Se, scores.Si, scores.Ne, scores.Ni, scores.Te, scores.Ti, scores.Fe, scores.Fi],
+                    fill: true,
+                    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                    borderColor: 'rgb(99, 102, 241)',
+                    pointBackgroundColor: 'rgb(99, 102, 241)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(99, 102, 241)'
+                }]
+            };
+
+            const config = {
+                type: 'radar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true,
+                                color: '#f1f5f9'
+                            },
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 35,
+                            ticks: {
+                                display: false,
+                                stepSize: 10
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 13,
+                                    weight: '600',
+                                    family: "'Inter', 'Noto Sans TC'"
+                                },
+                                color: '#475569'
+                            }
+                        }
+                    }
+                }
+            };
+
+            chartInstance = new Chart(ctx, config);
+        }
+
+        // 重新測試
+        function restartTest() {
+            userAnswers = Array(questions.length).fill(null).map(() => []);
+            currentIndex = 0;
+            document.getElementById('result-panel').classList.add('hidden');
+            document.getElementById('test-panel').classList.remove('hidden');
+            renderQuestion();
+        }
+    </script>
+</body>
+</html>
